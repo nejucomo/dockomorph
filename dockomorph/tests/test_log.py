@@ -1,14 +1,41 @@
-from mock import call
+import sys
+import logging
 
-from dockomorph.log import LogMixin
+from mock import patch, call
+
+from dockomorph import log
 from dockomorph.tests.logutil import LogMockingTestCase, ArgIsLogRecord
+
+
+class initTests (LogMockingTestCase):
+    @patch('logging.basicConfig')
+    @patch('twisted.python.log.PythonLoggingObserver')
+    def test_init(self, m_PLO, m_basicConfig):
+        log.init()
+
+        self.assert_calls_equal(
+            m_basicConfig,
+            [call(
+                stream=sys.stdout,
+                format=log.LogFormat,
+                datefmt=log.DateFormat,
+                level=logging.DEBUG)])
+
+        self.assert_calls_equal(
+            m_PLO,
+            [call(),
+             call().start()])
+
+        self.assert_calls_equal(
+            self.m_loghandler,
+            [])
 
 
 class LogMixinTests (LogMockingTestCase):
     def _test_init_and_name(self, name, instanceinfo):
-        class MyClass (LogMixin):
+        class MyClass (log.LogMixin):
             def __init__(self):
-                LogMixin.__init__(self, instanceinfo)
+                log.LogMixin.__init__(self, instanceinfo)
 
         obj = MyClass()
 
@@ -18,8 +45,8 @@ class LogMixinTests (LogMockingTestCase):
             self.m_loghandler,
             [call.handle(ArgIsLogRecord(msg='__init__'))])
 
-    def test_LogMixin_subclass_without_instanceinfo(self):
+    def test__init__without_instanceinfo(self):
         self._test_init_and_name('MyClass', None)
 
-    def test_LogMixin_subclass_with_instanceinfo(self):
+    def test__init__with_instanceinfo(self):
         self._test_init_and_name('MyClass[42]', 42)
