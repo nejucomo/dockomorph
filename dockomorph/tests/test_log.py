@@ -7,7 +7,7 @@ from dockomorph import log
 from dockomorph.tests.logutil import LogMockingTestCase, ArgIsLogRecord
 
 
-class initTests (LogMockingTestCase):
+class init_tests (LogMockingTestCase):
     def test_init(self):
         m_basicConfig = self.patch('logging.basicConfig')
         m_PLO = self.patch('twisted.python.log.PythonLoggingObserver')
