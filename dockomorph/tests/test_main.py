@@ -1,4 +1,4 @@
-from mock import MagicMock, sentinel, call
+from mock import sentinel, call
 
 from dockomorph.main import main
 from dockomorph.tests.logutil import LogMockingTestCase
@@ -8,7 +8,7 @@ class main_tests (LogMockingTestCase):
     def test_typical_run(self):
         m_parse_args = self.patch('dockomorph.clargs.parse_args')
         m_init = self.patch('dockomorph.log.init')
-        m_reactor = MagicMock()
+        m_reactor = self.make_mock()
 
         result = main(sentinel.args, m_reactor)
 
