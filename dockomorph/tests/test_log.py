@@ -1,16 +1,17 @@
 import sys
 import logging
 
-from mock import patch, call
+from mock import call
 
 from dockomorph import log
 from dockomorph.tests.logutil import LogMockingTestCase, ArgIsLogRecord
 
 
 class initTests (LogMockingTestCase):
-    @patch('logging.basicConfig')
-    @patch('twisted.python.log.PythonLoggingObserver')
-    def test_init(self, m_PLO, m_basicConfig):
+    def test_init(self):
+        m_basicConfig = self.patch('logging.basicConfig')
+        m_PLO = self.patch('twisted.python.log.PythonLoggingObserver')
+
         log.init()
 
         self.assert_calls_equal(
