@@ -8,6 +8,7 @@ class main_tests (LogMockingTestCase):
     def test_typical_run(self):
         m_parse_args = self.patch('dockomorph.clargs.parse_args')
         m_init = self.patch('dockomorph.log.init')
+        m_WebServer = self.patch('dockomorph.web.server.WebServer')
         m_reactor = self.make_mock()
 
         result = main(sentinel.args, m_reactor)
@@ -21,6 +22,11 @@ class main_tests (LogMockingTestCase):
         self.assert_calls_equal(
             m_init,
             [call()])
+
+        self.assert_calls_equal(
+            m_WebServer,
+            [call(m_reactor),
+             call().listen(m_parse_args().port)])
 
         self.assert_calls_equal(
             m_reactor,
