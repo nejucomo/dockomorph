@@ -17,5 +17,13 @@ setup(
         'twisted >= 13.1',
         'Mock >= 1.0.1',
         ],
+    entry_points={
+        'console_scripts': [
+            '{0} = {0}.main:main'.format(Package),
+            ],
+        },
     test_suite='{}.tests'.format(Package),
+    package_data={
+        Package: ['web/static/*'],
+        },
     )
