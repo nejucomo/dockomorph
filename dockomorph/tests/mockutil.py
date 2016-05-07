@@ -75,9 +75,10 @@ class EqCallback (object):
         return self._repstr
 
 
-ArgIsType = lambda T: EqCallback(
-    lambda v: isinstance(v, T),
-    'ArgIsType({})'.format(T.__name__,))
+def ArgIsType(T):
+    return EqCallback(
+        lambda v: isinstance(v, T),
+        'ArgIsType({})'.format(T.__name__,))
 
 
 def ArgIsTypeWithAttrs(T, **attrs):
