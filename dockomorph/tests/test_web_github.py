@@ -155,6 +155,14 @@ class SignatureVerifierTests (unittest.TestCase):
                 ),
             )
 
+    def test_vector_negative_sig_wrong_len(self):
+        self.failIf(
+            self.sigver(
+                allegedsig=XHubSignatureTestVector.expectedsig[:-1],
+                message=XHubSignatureTestVector.body,
+                ),
+            )
+
     def test_vector_negative_tampered_body(self):
         self.failIf(
             self.sigver(
