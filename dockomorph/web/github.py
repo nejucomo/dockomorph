@@ -44,6 +44,11 @@ class WebhookResource (LogMixin, resource.Resource):
         try:
             message = json.loads(body)
         except ValueError:
+            self._log.error(
+                "Received a signature-verified malformed JSON POST. " +
+                "There may be a bug in our signature verification, " +
+                "the standard python JSON parser, or github's emitter. "
+            )
             request.setResponseCode(400, 'MALFORMED')
         else:
             self._handle_event(eventid, eventname, message)
