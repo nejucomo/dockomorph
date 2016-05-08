@@ -58,18 +58,24 @@ class EqCallback (object):
     """
     def __init__(self, eqcb, repstr=None):
         if repstr is None:
-            if eqcb.__doc__:
-                repstr = eqcb.__doc__
-            elif eqcb.__name__:
-                repstr = eqcb.__name__
+            if getattr(eqcb, '__doc__', False):
+                repinfo = eqcb.__doc__
+            elif getattr(eqcb, '__name__', False):
+                repinfo = eqcb.__name__
             else:
-                repstr = repr(eqcb)
+                repinfo = repr(eqcb)
+            repstr = '<{} {}>'.format(
+                type(self).__name__,
+                repinfo)
 
         self._eqcb = eqcb
         self._repstr = repstr
 
     def __eq__(self, other):
         return self._eqcb(other)
+
+    def __ne__(self, other):
+        return not self == other
 
     def __repr__(self):
         return self._repstr
@@ -94,7 +100,11 @@ def ArgIsTypeWithAttrs(T, **attrs):
             return False
 
         for (name, expected) in attrs.iteritems():
-            actual = getattr(x, name)
+            try:
+                actual = getattr(x, name)
+            except AttributeError:
+                return False
+
             if expected != actual:
                 return False
 
