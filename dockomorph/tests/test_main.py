@@ -1,4 +1,4 @@
-from mock import sentinel, call
+from mock import ANY, sentinel, call
 
 from dockomorph.main import main
 from dockomorph.tests.logutil import LogMockingTestCase
@@ -7,9 +7,16 @@ from dockomorph.tests.logutil import LogMockingTestCase
 class main_tests (LogMockingTestCase):
     def test_typical_run(self):
         m_parse_args = self.patch('dockomorph.clargs.parse_args')
+        m_parse_config = self.patch('dockomorph.config.parse_config')
         m_init = self.patch('dockomorph.log.init')
         m_WebServer = self.patch('dockomorph.web.server.WebServer')
         m_reactor = self.make_mock()
+
+        m_parse_config.return_value = {
+            'github': {
+                'secret': sentinel.GH_SECRET,
+            },
+        }
 
         result = main(sentinel.args, m_reactor)
 
@@ -25,7 +32,7 @@ class main_tests (LogMockingTestCase):
 
         self.assert_calls_equal(
             m_WebServer,
-            [call(m_reactor),
+            [call(m_reactor, sentinel.GH_SECRET, ANY),
              call().listen(m_parse_args().port)])
 
         self.assert_calls_equal(
