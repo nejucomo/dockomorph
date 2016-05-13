@@ -7,7 +7,7 @@ from dockomorph.tests.logutil import LogMockingTestCase
 class WebServerTests (LogMockingTestCase):
     def test_init_and_listen(self):
         m_Site = self.patch('twisted.web.server.Site')
-        m_RootResource = self.patch('dockomorph.web.root.RootResource')
+        m_File = self.patch('twisted.web.static.File')
         m_reactor = self.make_mock()
 
         ws = WebServer(m_reactor)
@@ -18,12 +18,12 @@ class WebServerTests (LogMockingTestCase):
             [])
 
         self.assert_calls_equal(
-            m_RootResource,
-            [call(m_reactor)])
+            m_File,
+            [call(WebServer.StaticDir)])
 
         self.assert_calls_equal(
             m_Site,
-            [call(m_RootResource())])
+            [call(m_File())])
 
         self.reset_mocks()
 
