@@ -39,8 +39,6 @@ class WebhookResource (LogMixin, resource.Resource):
         return NOT_DONE_YET
 
     def _handle_signed_message(self, request, body):
-        eventname = request.getHeader('X-Github-Event')
-        eventid = request.getHeader('X-Github-Delivery')
         try:
             message = json.loads(body)
         except ValueError:
@@ -51,6 +49,8 @@ class WebhookResource (LogMixin, resource.Resource):
             )
             request.setResponseCode(400, 'MALFORMED')
         else:
+            eventname = request.getHeader('X-Github-Event')
+            eventid = request.getHeader('X-Github-Delivery')
             self._handle_event(eventid, eventname, message)
             request.setResponseCode(200, 'OK')
 

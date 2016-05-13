@@ -132,6 +132,21 @@ class WebhookResourceTests (LogMockingTestCase):
             self.m_loghandler,
             [call.handle(ArgIsLogRecord(levelname='WARNING'))])
 
+    def test_signed_malformed_JSON(self):
+        self.reset_mocks()
+
+        m_request = self.make_mock()
+
+        self.res._handle_signed_message(m_request, '%@ NOT JSON @%')
+
+        self.assert_calls_equal(
+            self.m_loghandler,
+            [call.handle(ArgIsLogRecord(levelname='ERROR'))])
+
+        self.assert_calls_equal(
+            m_request,
+            [call.setResponseCode(400, 'MALFORMED')])
+
 
 class SignatureVerifierTests (unittest.TestCase):
     def setUp(self):
