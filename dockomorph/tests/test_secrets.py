@@ -91,3 +91,26 @@ class create_or_load_secrets_tests (LogMockingTestCase):
                 ArgIsLogRecord(
                     levelname='INFO',
                     msg='Initialized secret %r to: %s'))])
+
+    def test_makedirs_error(self):
+        m_FilePath = self.patch('twisted.python.filepath.FilePath')
+
+        m_secretsdir = m_FilePath.return_value
+        m_secretsdir.makedirs.side_effect = os.error(
+            errno.EACCES,
+            'fake-access-error',
+        )
+
+        self.assertRaises(os.error, secrets.create_or_load_secret, 'banana')
+
+    def test_read_error(self):
+        m_FilePath = self.patch('twisted.python.filepath.FilePath')
+
+        m_secretsdir = m_FilePath.return_value
+        m_path = m_secretsdir.child.return_value
+        m_path.open.side_effect = IOError(
+            errno.ENODEV,
+            'fake-no-dev-error',
+        )
+
+        self.assertRaises(IOError, secrets.create_or_load_secret, 'banana')
