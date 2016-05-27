@@ -2,7 +2,7 @@ import sys
 
 from twisted.internet import reactor
 
-from dockomorph import clargs, log, secrets
+from dockomorph import clargs, log, secrets, orchestrator
 from dockomorph.web import server
 
 
@@ -15,10 +15,9 @@ def main(args=sys.argv[1:], reactor=reactor):
 
     ghsecret = secrets.create_or_load_secret('github')
 
-    def gh_event(*a, **kw):
-        raise NotImplementedError((gh_event, a, kw))
+    orch = orchestrator.Orchestrator(reactor)
 
-    ws = server.WebServer(reactor, ghsecret, gh_event)
+    ws = server.WebServer(reactor, ghsecret, orch.update_repository)
     ws.listen(opts.port)
 
     reactor.run()
