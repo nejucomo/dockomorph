@@ -88,7 +88,7 @@ def ArgIsType(T):
 
 
 def ArgIsTypeWithAttrs(T, **attrs):
-    desc = 'ArgIsLogTypeWithAttrs({}, {})'.format(
+    desc = 'ArgIsTypeWithAttrs({}, {})'.format(
         T.__name__,
         ', '.join(
             '{}={!r}'.format(k, v)
