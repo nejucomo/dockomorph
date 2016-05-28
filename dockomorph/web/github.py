@@ -11,12 +11,13 @@ from dockomorph.log import LogMixin
 class WebhookResource (LogMixin, resource.Resource):
     isLeaf = True
 
-    def __init__(self, sharedsecret, handle_event):
+    def __init__(self, reactor, sharedsecret, handle_push_tag):
         resource.Resource.__init__(self)
         LogMixin.__init__(self)
 
+        self._reactor = reactor
         self._verify_signature = SignatureVerifier(sharedsecret)
-        self._handle_event = handle_event
+        self._handle_push_tag = handle_push_tag
 
     def render_GET(self, request):
         request.setResponseCode(403, 'FORBIDDEN')
@@ -51,8 +52,41 @@ class WebhookResource (LogMixin, resource.Resource):
         else:
             eventname = request.getHeader('X-Github-Event')
             eventid = request.getHeader('X-Github-Delivery')
-            self._handle_event(eventid, eventname, message)
-            request.setResponseCode(200, 'OK')
+            if self._handle_bare_event(eventid, eventname, message):
+                request.setResponseCode(200, 'OK')
+            else:
+                request.setResponseCode(400, 'Event Not Supported')
+
+    def _handle_bare_event(self, eventid, eventname, message):
+        if eventname == 'ping':
+            return True
+        elif eventname == 'push':
+            # There's no ability for the app logic to affect the HTTP
+            # response now, so put off further processing into a later
+            # reactor turn:
+            self._reactor.callLater(0, self._handle_push_event, message)
+            return True
+        else:
+            self._log.info(
+                'Unhandled github %r event %r.',
+                eventname,
+                eventid,
+            )
+            return False
+
+    def _handle_push_event(self, message):
+        ref = message['ref']
+        if not ref.startswith('refs/tags/dockomorph.'):
+            self._log.debug('Ignoring non-dockomorph tag push to %r', ref)
+            return
+
+        tag = ref[len('refs/tags/'):]
+
+        repo = message['repository']
+        reponame = repo['name']
+        repourl = repo['clone_url']
+
+        self._handle_push_tag(reponame, repourl, tag)
 
 
 class SignatureVerifier (object):

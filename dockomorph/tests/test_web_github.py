@@ -10,6 +10,7 @@ from dockomorph.web import github
 
 class WebhookResourceTests (LogMockingTestCase):
     secret = 'fake secret'
+    fakeid = 'a fake event id'
 
     pingmessage = {
         u'hook': {
@@ -55,45 +56,65 @@ class WebhookResourceTests (LogMockingTestCase):
     def setUp(self):
         LogMockingTestCase.setUp(self)
 
-        self.pingbody = json.dumps(self.pingmessage)
-        sigver = github.SignatureVerifier(self.secret)
-        self.pingexpsig = sigver._calculate_hmacsha1(self.pingbody)
+        self.sigver = github.SignatureVerifier(self.secret)
 
-        self.m_handle_event = self.make_mock()
-        self.m_request = self.make_mock()
-        self.m_request.content.getvalue.return_value = self.pingbody
+        self.m_reactor = self.make_mock()
+        self.m_handle_push_tag = self.make_mock()
+
+        self.res = github.WebhookResource(
+            self.m_reactor,
+            self.secret,
+            self.m_handle_push_tag,
+        )
+
+        self.assert_calls_equal(
+            self.m_loghandler,
+            [call.handle(ArgIsLogRecord(levelname='DEBUG', msg='__init__'))])
+
+        # Clear out m_loghandler:
+        self.reset_mocks()
+
+    def _setup_mock_request(self, eventtype, body):
+        jsonbody = json.dumps(body)
+        expsig = self.sigver._calculate_hmacsha1(jsonbody)
+
+        m_request = self.make_mock()
+        m_request.content.getvalue.return_value = jsonbody
 
         headers = {
-            'X-Github-Event': 'ping',
-            'X-Github-Delivery': 'a fake unique id',
-            'X-Hub-Signature': 'sha1=' + self.pingexpsig,
+            'X-Github-Event': eventtype,
+            'X-Github-Delivery': self.fakeid,
+            'X-Hub-Signature': 'sha1=' + expsig,
             }
-        self.m_request.getHeader.side_effect = headers.get
+        m_request.getHeader.side_effect = headers.get
 
-        self.res = github.WebhookResource(self.secret, self.m_handle_event)
+        return m_request
 
     def test_isLeaf_resource(self):
         self.assertEqual(True, github.WebhookResource.isLeaf)
 
     def test_render_GET(self):
-        r = self.res.render_GET(self.m_request)
+        m_request = self._setup_mock_request('fake request type', [])
+        r = self.res.render_GET(m_request)
 
         self.assertEqual(NOT_DONE_YET, r)
         self.assert_calls_equal(
-            self.m_handle_event,
+            self.m_handle_push_tag,
             [])
 
         self.assert_calls_equal(
-            self.m_request,
+            m_request,
             [call.setResponseCode(403, 'FORBIDDEN'),
              call.finish()])
 
     def test_render_POST_ping(self):
-        r = self.res.render_POST(self.m_request)
+        m_request = self._setup_mock_request('ping', self.pingmessage)
+
+        r = self.res.render_POST(m_request)
 
         self.assertEqual(NOT_DONE_YET, r)
         self.assert_calls_equal(
-            self.m_request,
+            m_request,
             [call.getHeader('X-Hub-Signature'),
              call.content.getvalue(),
              call.getHeader('X-Github-Event'),
@@ -101,28 +122,29 @@ class WebhookResourceTests (LogMockingTestCase):
              call.setResponseCode(200, 'OK'),
              call.finish()])
 
+        # Pings do not reach the push handler:
         self.assert_calls_equal(
-            self.m_handle_event,
-            [call('a fake unique id', 'ping', self.pingmessage)])
+            self.m_handle_push_tag,
+            [])
 
         self.assert_calls_equal(
             self.m_loghandler,
-            [call.handle(ArgIsLogRecord(levelname='DEBUG', msg='__init__'))])
+            [])
 
     def test_render_POST_ping_tampered(self):
-        self.reset_mocks()
+        m_request = self._setup_mock_request('ping', self.pingmessage)
 
         tweakedmessage = self.pingmessage.copy()
         tweakedmessage['hook_id'] += 1
 
-        self.m_request.content.getvalue.return_value = \
+        m_request.content.getvalue.return_value = \
             json.dumps(tweakedmessage)
 
-        r = self.res.render_POST(self.m_request)
+        r = self.res.render_POST(m_request)
 
         self.assertEqual(NOT_DONE_YET, r)
         self.assert_calls_equal(
-            self.m_request,
+            m_request,
             [call.getHeader('X-Hub-Signature'),
              call.content.getvalue(),
              call.setResponseCode(403, 'FORBIDDEN'),
@@ -132,9 +154,29 @@ class WebhookResourceTests (LogMockingTestCase):
             self.m_loghandler,
             [call.handle(ArgIsLogRecord(levelname='WARNING'))])
 
-    def test_signed_malformed_JSON(self):
-        self.reset_mocks()
+    def test_render_POST_unhandled_event_type(self):
+        m_request = self._setup_mock_request('unknown event type', [])
 
+        r = self.res.render_POST(m_request)
+
+        self.assertEqual(NOT_DONE_YET, r)
+        self.assert_calls_equal(
+            m_request,
+            [call.getHeader('X-Hub-Signature'),
+             call.content.getvalue(),
+             call.getHeader('X-Github-Event'),
+             call.getHeader('X-Github-Delivery'),
+             call.setResponseCode(400, 'Event Not Supported'),
+             call.finish()])
+
+        self.assert_calls_equal(
+            self.m_loghandler,
+            [call.handle(
+                ArgIsLogRecord(
+                    levelname='INFO',
+                    msg='Unhandled github %r event %r.'))])
+
+    def test_signed_malformed_JSON(self):
         m_request = self.make_mock()
 
         self.res._handle_signed_message(m_request, '%@ NOT JSON @%')
@@ -146,6 +188,65 @@ class WebhookResourceTests (LogMockingTestCase):
         self.assert_calls_equal(
             m_request,
             [call.setResponseCode(400, 'MALFORMED')])
+
+    def _test_handle_bare_event(self, retval, eventtype, msg):
+        r = self.res._handle_bare_event('fake id', eventtype, msg)
+        self.assertIs(retval, r)
+
+    def test_handle_bare_event_ping(self):
+        self._test_handle_bare_event(True, 'ping', 'banana')
+
+    def test_handle_bare_event_push(self):
+        self._test_handle_bare_event(True, 'push', 'banana')
+
+        self.assert_calls_equal(
+            self.m_reactor,
+            [call.callLater(0, self.res._handle_push_event, 'banana')])
+
+    def test_handle_bare_event_some_unsupported_event_type(self):
+        self._test_handle_bare_event(
+            False,
+            '%! some unsupported event type !%',
+            'banana',
+        )
+
+        self.assert_calls_equal(
+            self.m_loghandler,
+            [call.handle(
+                 ArgIsLogRecord(
+                     levelname='INFO',
+                     msg='Unhandled github %r event %r.'))])
+
+    def test_handle_push_event_not_dockomorph_tag(self):
+        self.res._handle_push_event({'ref': 'refs/heads/master'})
+
+        self.assert_calls_equal(
+            self.m_loghandler,
+            [call.handle(
+                 ArgIsLogRecord(
+                     levelname='DEBUG',
+                     args=('refs/heads/master',)))])
+
+        self.assert_calls_equal(
+            self.m_handle_push_tag,
+            [])
+
+    def test_handle_push_event_dockomorph_tag(self):
+        self.res._handle_push_event({
+            'ref': 'refs/tags/dockomorph.0',
+            'repository': {
+                'name': 'ossmproj',
+                'clone_url': 'fake url',
+            },
+        })
+
+        self.assert_calls_equal(
+            self.m_loghandler,
+            [])
+
+        self.assert_calls_equal(
+            self.m_handle_push_tag,
+            [call('ossmproj', 'fake url', 'dockomorph.0')])
 
 
 class SignatureVerifierTests (unittest.TestCase):
