@@ -1,16 +1,9 @@
-from dockomorph.log import LogMixin
+from dockomorph.reactive import ReactiveMixin
 
 
-class DockHerd (LogMixin):
-    def __init__(self, reactor):
-        LogMixin.__init__(self)
-
-        self._reactor = reactor
-
-    def build_and_deploy(self, name, repopath, dockerfile):
+class DockHerd (ReactiveMixin):
+    def build_and_deploy(self, repopath):
         raise NotImplementedError((
             DockHerd.build_and_deploy,
-            name,
             repopath,
-            dockerfile,
         ))

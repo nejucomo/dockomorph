@@ -5,17 +5,16 @@ import hashlib
 from twisted.web import resource
 from twisted.web.server import NOT_DONE_YET
 
-from dockomorph.log import LogMixin
+from dockomorph.reactive import ReactiveMixin
 
 
-class WebhookResource (LogMixin, resource.Resource):
+class WebhookResource (ReactiveMixin, resource.Resource):
     isLeaf = True
 
     def __init__(self, reactor, sharedsecret, handle_push_tag):
         resource.Resource.__init__(self)
-        LogMixin.__init__(self)
+        ReactiveMixin.__init__(self, reactor)
 
-        self._reactor = reactor
         self._verify_signature = SignatureVerifier(sharedsecret)
         self._handle_push_tag = handle_push_tag
 

@@ -8,8 +8,9 @@ class main_tests (LogMockingTestCase):
     def test_typical_run(self):
         m_parse_args = self.patch('dockomorph.clargs.parse_args')
         m_parse_config = self.patch('dockomorph.config.parse_config')
-        m_cols = self.patch('dockomorph.secrets.create_or_load_secret')
         m_init = self.patch('dockomorph.log.init')
+        m_GitsDir = self.patch('dockomorph.paths.GitsDir')
+        m_cols = self.patch('dockomorph.secrets.create_or_load_secret')
         m_WebServer = self.patch('dockomorph.web.server.WebServer')
         m_reactor = self.make_mock()
 
@@ -30,6 +31,10 @@ class main_tests (LogMockingTestCase):
         self.assert_calls_equal(
             m_init,
             [call()])
+
+        self.assert_calls_equal(
+            m_GitsDir,
+            [call.makedirs(ignoreExistingDirectory=True)])
 
         self.assert_calls_equal(
             m_cols,

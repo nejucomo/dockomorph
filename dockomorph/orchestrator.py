@@ -3,10 +3,10 @@ from dockomorph import dockherd, repoman
 
 
 class Orchestrator (LogMixin):
-    def __init__(self, reactor):
+    def __init__(self, reactor, authset):
         LogMixin.__init__(self)
 
-        self._repoman = repoman.RepositoryManager(reactor)
+        self._repoman = repoman.RepositoryManager(reactor, authset)
         self._dockherd = dockherd.DockHerd(reactor)
 
     def update_repository(self, name, repourl, tag):
